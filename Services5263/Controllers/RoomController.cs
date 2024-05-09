@@ -1,115 +1,97 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Services5263;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services5263.Controllers
 {
-    public class RoomController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class RoomController : ControllerBase
     {
-        private readonly IRoomRepository _roomService;
+        private readonly AppDbContext _context;
 
-        public RoomController(IRoomRepository roomService)
+        public RoomController(AppDbContext context)
         {
-            _roomService = roomService;
+            _context = context;
         }
 
-        // GET: /Room
-        public IActionResult Index()
+        // GET: api/room
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Room>>> GetRooms()
         {
-            var rooms = _roomService.GetAllRooms();
-            return View(rooms);
+            return await _context.Rooms.ToListAsync();
         }
 
-        // GET: /Room/Create
-        public IActionResult Create()
+        // GET: api/room/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Room>> GetRoom(int id)
         {
-            return View();
-        }
+            var room = await _context.Rooms.FindAsync(id);
 
-        // POST: /Room/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Create(Room room)
-        {
-            if (ModelState.IsValid)
-            {
-                _roomService.CreateRoom(room);
-                return RedirectToAction(nameof(Index));
-            }
-            return View(room);
-        }
-
-        // GET: /Room/Edit/5
-        public IActionResult Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var room = _roomService.GetRoomById(id.Value);
             if (room == null)
             {
                 return NotFound();
             }
 
-            return View(room);
+            return room;
         }
 
-        // POST: /Room/Edit/5
+        // POST: api/room
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, Room room)
+        public async Task<ActionResult<Room>> PostRoom(Room room)
+        {
+            _context.Rooms.Add(room);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetRoom), new { id = room.RoomId }, room);
+        }
+
+        // PUT: api/room/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutRoom(int id, Room room)
         {
             if (id != room.RoomId)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-            if (ModelState.IsValid)
+            _context.Entry(room).State = EntityState.Modified;
+
+            try
             {
-                try
-                {
-                    _roomService.UpdateRoom(room);
-                }
-                catch (Exception)
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Rooms.Any(r => r.RoomId == id))
                 {
                     return NotFound();
                 }
-                return RedirectToAction(nameof(Index));
+                else
+                {
+                    throw;
+                }
             }
-            return View(room);
+
+            return NoContent();
         }
 
-        // GET: /Room/Delete/5
-        public IActionResult Delete(int? id)
+        // DELETE: api/room/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteRoom(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var room = _roomService.GetRoomById(id.Value);
+            var room = await _context.Rooms.FindAsync(id);
             if (room == null)
             {
                 return NotFound();
             }
 
-            return View(room);
-        }
+            _context.Rooms.Remove(room);
+            await _context.SaveChangesAsync();
 
-        // POST: /Room/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
-        {
-            var room = _roomService.GetRoomById(id);
-            if (room == null)
-            {
-                return NotFound();
-            }
-
-            _roomService.DeleteRoom(id);
-            return RedirectToAction(nameof(Index));
+            return NoContent();
         }
     }
 }
