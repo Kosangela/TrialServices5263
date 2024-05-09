@@ -1,117 +1,97 @@
-﻿using System;
-using System.Linq;
 using Microsoft.AspNetCore.Mvc;
-using Services5263;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Services5263.Controllers
 {
-    public class GuestController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class GuestController : ControllerBase
     {
-        private readonly IGuestRepository _guestService;
+        private readonly AppDbContext _context;
 
-        public GuestController(IGuestRepository guestService)
+        public GuestController(AppDbContext context)
         {
-            _guestService = guestService;
+            _context = context;
         }
 
-        // GET: /Guest
-        public IActionResult Index()
+        // GET: api/guest
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Guest>>> GetGuests()
         {
-            var guests = _guestService.GetAllGuests();
-            return View(guests);
+            return await _context.Guests.ToListAsync();
         }
 
-        // GET: /Guest/Create
-        public IActionResult Create()
+        // GET: api/guest/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Guest>> GetGuest(int id)
         {
-            return View();
-        }
+            var guest = await _context.Guests.FindAsync(id);
 
-        // POST: /Guest/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Create(Guest guest)
-        {
-            if (ModelState.IsValid)
-            {
-                _guestService.CreateGuest(guest);
-                return RedirectToAction(nameof(Index));
-            }
-            return View(guest);
-        }
-
-        // GET: /Guest/Edit/5
-        public IActionResult Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var guest = _guestService.GetGuestById(id.Value);
             if (guest == null)
             {
                 return NotFound();
             }
 
-            return View(guest);
+            return guest;
         }
 
-        // POST: /Guest/Edit/5
+        // POST: api/guest
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Edit(int id, Guest guest)
+        public async Task<ActionResult<Guest>> PostGuest(Guest guest)
+        {
+            _context.Guests.Add(guest);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetGuest), new { id = guest.GuestId }, guest);
+        }
+
+        // PUT: api/guest/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutGuest(int id, Guest guest)
         {
             if (id != guest.GuestId)
             {
-                return NotFound();
+                return BadRequest();
             }
 
-            if (ModelState.IsValid)
+            _context.Entry(guest).State = EntityState.Modified;
+
+            try
             {
-                try
-                {
-                    _guestService.UpdateGuest(guest);
-                }
-                catch (Exception)
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Guests.Any(g => g.GuestId == id))
                 {
                     return NotFound();
                 }
-                return RedirectToAction(nameof(Index));
+                else
+                {
+                    throw;
+                }
             }
-            return View(guest);
+
+            return NoContent();
         }
 
-        // GET: /Guest/Delete/5
-        public IActionResult Delete(int? id)
+        // DELETE: api/guest/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteGuest(int id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var guest = _guestService.GetGuestById(id.Value);
+            var guest = await _context.Guests.FindAsync(id);
             if (guest == null)
             {
                 return NotFound();
             }
 
-            return View(guest);
-        }
+            _context.Guests.Remove(guest);
+            await _context.SaveChangesAsync();
 
-        // POST: /Guest/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
-        {
-            var guest = _guestService.GetGuestById(id);
-            if (guest == null)
-            {
-                return NotFound();
-            }
-
-            _guestService.DeleteGuest(id);
-            return RedirectToAction(nameof(Index));
+            return NoContent();
         }
     }
 }
